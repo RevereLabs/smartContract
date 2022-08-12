@@ -24,7 +24,6 @@ contract RevereGigNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Pausable, O
         _tokenIdCounter.increment();
     }
 
-    // what does this do
     function pause() public onlyOwner {
         _pause();
     }

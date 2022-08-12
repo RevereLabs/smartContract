@@ -5,6 +5,9 @@
 
 //SPDX-License-Identifier: MIT
  
+// https://github.com/jacksonng77/freelancer/blob/main/contracts/freelancer.sol
+// https://medium.com/coinmonks/the-freelancers-smart-contract-how-it-works-fda5e1fddf8d
+
 pragma solidity ^0.8.2;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";

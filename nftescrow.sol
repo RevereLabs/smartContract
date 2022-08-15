@@ -20,6 +20,12 @@ contract nftescrow is IERC721Receiver {
     
     enum ProjectState {newEscrow, nftDeposited, cancelNFT, ethDeposited, canceledBeforeDelivery, deliveryInitiated, delivered}
     event Received(address, uint);
+
+    event ClientCheckpointChanged(uint8);
+    event FreelancerCheckpointChanged(uint8);
+
+    event FundsDisbursed(uint8 _from, uint8 _to);
+
     address payable public sellerAddress;
     address payable public buyerAddress;
     address public nftAddress;
@@ -28,15 +34,92 @@ contract nftescrow is IERC721Receiver {
     bool sellerCancel = false;
     ProjectState public projectState;
 
+    struct currentCheckpointsStruct {
+        uint8 client;
+        uint8 freelancer;
+
+        // smc denotes till which checkpoint have funds been disbursed
+        uint8 smc;
+    }
+
+    currentCheckpointsStruct currentCheckpoints;
+
+
+
+    // percentage of funds to be disbursed at each step.
+    // NOTE: You NEED to use cumulative percentages.
+    uint8[] checkpoints;
+
     // IERC20 public token; // Address of token contract
     // address public transferOperator; // Address to manage the Transfers
 
-    constructor() payable
+    constructor(uint8[] memory _checkpoints) payable
     {
         // token = IERC20(_token);
         // transferOperator = msg.sender;
+        require(_checkpoints[_checkpoints.length-1]==100);
         sellerAddress = payable(msg.sender);
         projectState = ProjectState.newEscrow;
+        checkpoints = _checkpoints;
+    }
+
+   	modifier condition(bool _condition) {
+		require(_condition);
+		_;
+	}
+
+	modifier onlySeller() {
+		require(msg.sender == sellerAddress);
+		_;
+	}
+
+	modifier onlyBuyer() {
+		require(msg.sender == buyerAddress);
+		_;
+	}
+	
+	modifier noDispute(){
+	    require(buyerCancel == false && sellerCancel == false);
+	    _;
+	}
+	
+	modifier BuyerOrSeller() {
+		require(msg.sender == buyerAddress || msg.sender == sellerAddress);
+		_;
+	}
+	
+	modifier inProjectState(ProjectState _state) {
+		require(projectState == _state);
+		_;
+	}    
+
+    function getCheckpoints() external view returns (uint8[] memory) {
+        return checkpoints;
+    }
+
+    function increaseFreelancerCheckpoint() external onlySeller {
+        require(currentCheckpoints.freelancer < (checkpoints.length - 1));
+        currentCheckpoints.freelancer++;
+        emit FreelancerCheckpointChanged(currentCheckpoints.freelancer);
+    }
+
+    function setClientCheckpoint() external onlyBuyer {
+        require(currentCheckpoints.client < (checkpoints.length - 1));
+        currentCheckpoints.client++;
+        emit ClientCheckpointChanged(currentCheckpoints.client);    
+    }    
+
+    function disburseFunds() public BuyerOrSeller {
+        uint8 approvedCheckpoint = currentCheckpoints.client;
+        if (currentCheckpoints.freelancer < currentCheckpoints.client) {
+            approvedCheckpoint = currentCheckpoints.freelancer;
+        }
+        if (currentCheckpoints.smc < approvedCheckpoint) {
+            uint8 percentageToBeTransferred = checkpoints[approvedCheckpoint] - checkpoints[currentCheckpoints.smc];
+            // TODO: Transfer percentageToBeTransferred*totalAmount to freelancer
+            emit FundsDisbursed(currentCheckpoints.smc, approvedCheckpoint);
+            currentCheckpoints.smc = approvedCheckpoint;
+        }
     }
 
 
@@ -117,35 +200,9 @@ contract nftescrow is IERC721Receiver {
         projectState = ProjectState.delivered;
     }
         
-   	modifier condition(bool _condition) {
-		require(_condition);
-		_;
-	}
 
-	modifier onlySeller() {
-		require(msg.sender == sellerAddress);
-		_;
-	}
 
-	modifier onlyBuyer() {
-		require(msg.sender == buyerAddress);
-		_;
-	}
-	
-	modifier noDispute(){
-	    require(buyerCancel == false && sellerCancel == false);
-	    _;
-	}
-	
-	modifier BuyerOrSeller() {
-		require(msg.sender == buyerAddress || msg.sender == sellerAddress);
-		_;
-	}
-	
-	modifier inProjectState(ProjectState _state) {
-		require(projectState == _state);
-		_;
-	}
+
 
     function getBalance()
         public

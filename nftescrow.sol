@@ -14,11 +14,12 @@ pragma solidity ^0.8.2;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract nftescrow is IERC721Receiver {
     
     enum ProjectState {newEscrow, nftDeposited, cancelNFT, ethDeposited, canceledBeforeDelivery, deliveryInitiated, delivered}
-    
+    event Received(address, uint);
     address payable public sellerAddress;
     address payable public buyerAddress;
     address public nftAddress;
@@ -27,10 +28,20 @@ contract nftescrow is IERC721Receiver {
     bool sellerCancel = false;
     ProjectState public projectState;
 
-    constructor()
+    // IERC20 public token; // Address of token contract
+    // address public transferOperator; // Address to manage the Transfers
+
+    constructor() payable
     {
+        // token = IERC20(_token);
+        // transferOperator = msg.sender;
         sellerAddress = payable(msg.sender);
         projectState = ProjectState.newEscrow;
+    }
+
+
+    function balanceofERC20(address TokenAddress) public view returns ( uint256 ){
+        return IERC20(TokenAddress).balanceOf(address(this));
     }
     
     function onERC721Received( address operator, address from, uint256 tokenId, bytes calldata data ) public override returns (bytes4) {
@@ -80,7 +91,7 @@ contract nftescrow is IERC721Receiver {
     function depositETH()
         public
         payable
-        inProjectState(ProjectState.nftDeposited)
+        // inProjectState(ProjectState.nftDeposited)
     {
         buyerAddress = payable(msg.sender);
         projectState = ProjectState.ethDeposited;
@@ -142,5 +153,9 @@ contract nftescrow is IERC721Receiver {
         returns (uint256 balance)
     {
         return address(this).balance;
+    }
+
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
     }
 } 

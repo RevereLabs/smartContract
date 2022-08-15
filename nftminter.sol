@@ -19,6 +19,7 @@ contract RevereGigNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Pausable, O
 
     constructor() ERC721("RevereGigNFT", "RNFT") {}
 
+    // Will be used to provide RevereGigNFT to the user
     function safeMint(address to) public onlyOwner {
         _safeMint(to, _tokenIdCounter.current());
         _tokenIdCounter.increment();

@@ -37,12 +37,14 @@ contract nftescrow is IERC721Receiver {
 // TODO: why public?
 // TODO: token address can change ,rn hardcoded
 
-    address public RTNAddress = 0x78BEA5a0907744CDd8b722038B5F15351dD9aF27;
+    address public RTNAddress = 0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8;
+    address public RNFTAddress;
+    address public RGCNFTAddress;
+
 
     address payable public clientAddress;
     address payable public freelancerAddress;
-    address public RNFTAddress;
-    address public RGCNFTAddress;
+
     
     uint256 RNFTTokenID;
 

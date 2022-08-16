@@ -18,7 +18,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract nftescrow is IERC721Receiver {
     
-    enum ProjectState {newEscrow, nftDeposited, cancelNFT, ethDeposited, canceledBeforeDelivery, deliveryInitiated, delivered}
+    enum ProjectState {newEscrow, nftDeposited, receivedFundsByClient, receivedFundsByFreelancer, checkpointingStarted, checkpointsDone, distributionDone, cancelledByClient, cancelledByFreelancer, delivered}
     event Received(address, uint);
 
     event ClientCheckpointChanged(uint8);
@@ -26,18 +26,25 @@ contract nftescrow is IERC721Receiver {
 
     event FundsDisbursed(uint8 _from, uint8 _to);
 
-    address payable public sellerAddress;
-    address payable public buyerAddress;
+// TODO: why public?
+// TODO: token address can change ,rn hardcoded
+
+    address public tokenAddress = '';
+
+    address payable public clientAddress;
+    address payable public freelancerAddress;
     address public nftAddress;
     uint256 tokenID;
-    bool buyerCancel = false;
-    bool sellerCancel = false;
+
+    uint clientAmount;
+    uint freelancerStake;
+
+
     ProjectState public projectState;
 
     struct currentCheckpointsStruct {
         uint8 client;
         uint8 freelancer;
-
         // smc denotes till which checkpoint have funds been disbursed
         uint8 smc;
     }
@@ -53,14 +60,16 @@ contract nftescrow is IERC721Receiver {
     // IERC20 public token; // Address of token contract
     // address public transferOperator; // Address to manage the Transfers
 
-    constructor(uint8[] memory _checkpoints) payable
+    constructor(uint8[] memory _checkpoints, string _freelancer, uint _clientAmount , uint _freelancerStake ) payable
     {
-        // token = IERC20(_token);
-        // transferOperator = msg.sender;
+    
         require(_checkpoints[_checkpoints.length-1]==100);
-        sellerAddress = payable(msg.sender);
-        projectState = ProjectState.newEscrow;
+        clientAddress = payable(msg.sender);
+        freelancerAddress = payable(_freelancer);
         checkpoints = _checkpoints;
+        clientAmount = _clientAmount;
+        freelancerStake = _freelancerStake;
+        projectState = ProjectState.newEscrow;
     }
 
    	modifier condition(bool _condition) {
@@ -68,13 +77,13 @@ contract nftescrow is IERC721Receiver {
 		_;
 	}
 
-	modifier onlySeller() {
-		require(msg.sender == sellerAddress);
+	modifier onlyClient() {
+		require(msg.sender == clientAddress);
 		_;
 	}
 
-	modifier onlyBuyer() {
-		require(msg.sender == buyerAddress);
+	modifier onlyFreelancer() {
+		require(msg.sender == freelancerAddress);
 		_;
 	}
 	
@@ -91,7 +100,40 @@ contract nftescrow is IERC721Receiver {
 	modifier inProjectState(ProjectState _state) {
 		require(projectState == _state);
 		_;
-	}    
+	}
+
+     function depositNFT(address _NFTAddress, uint256 _TokenID)
+        public
+        inProjectState(ProjectState.newEscrow)
+        onlyClient
+    {
+        nftAddress = _NFTAddress;
+        tokenID = _TokenID;
+        ERC721(nftAddress).safeTransferFrom(msg.sender, address(this), tokenID);
+        projectState = ProjectState.nftDeposited;
+    } 
+
+    
+    function depositAsClient()
+        public
+        inProjectState(ProjectState.nftDeposited)
+        onlyClient
+        // payable
+        // inProjectState(ProjectState.nftDeposited)
+    {
+        // buyerAddress = payable(msg.sender);
+        IERC20(tokenAddress).transferFrom(msg.sender, address(this), clientAmount);
+        projectState = ProjectState.receivedFundsByClient;
+
+    }  
+
+
+
+
+
+
+
+
 
     function getCheckpoints() external view returns (uint8[] memory) {
         return checkpoints;
@@ -131,16 +173,7 @@ contract nftescrow is IERC721Receiver {
         return this.onERC721Received.selector;
     }
     
-    function depositNFT(address _NFTAddress, uint256 _TokenID)
-        public
-        inProjectState(ProjectState.newEscrow)
-        onlySeller
-    {
-        nftAddress = _NFTAddress;
-        tokenID = _TokenID;
-        ERC721(nftAddress).safeTransferFrom(msg.sender, address(this), tokenID);
-        projectState = ProjectState.nftDeposited;
-    }
+   
     
     function cancelAtNFT()
         public
@@ -171,14 +204,6 @@ contract nftescrow is IERC721Receiver {
         }
     }
     
-    function depositETH()
-        public
-        payable
-        // inProjectState(ProjectState.nftDeposited)
-    {
-        buyerAddress = payable(msg.sender);
-        projectState = ProjectState.ethDeposited;
-    }
     
     function initiateDelivery()
         public

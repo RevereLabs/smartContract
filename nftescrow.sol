@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract RGCNFTInterface {
+interface RGCNFTInterface {
     function mint(
         address _to,
         string memory tokenURI_
@@ -24,7 +24,7 @@ contract RGCNFTInterface {
 }
 contract nftescrow is IERC721Receiver {
     
-    enum ProjectState {newEscrow, nftDeposited, receivedFundsByClient, checkpointingStarted, checkpointsDone, done, cancelledByClient, cancelledByFreelancer,}
+    enum ProjectState {newEscrow, nftDeposited, receivedFundsByClient, checkpointingStarted, checkpointsDone, done, cancelledByClient, cancelledByFreelancer}
     event Received(address, uint);
 
     event ClientCheckpointChanged(uint8);
@@ -32,12 +32,12 @@ contract nftescrow is IERC721Receiver {
 
     event FundsDisbursed(uint8 _from, uint8 _to);
 
-    event ProjectStateChanged(uint _state);
+    event ProjectStateChanged(ProjectState _state);
 
 // TODO: why public?
 // TODO: token address can change ,rn hardcoded
 
-    address public RTNAddress = '';
+    address public RTNAddress = 0x78BEA5a0907744CDd8b722038B5F15351dD9aF27;
 
     address payable public clientAddress;
     address payable public freelancerAddress;
@@ -72,7 +72,7 @@ contract nftescrow is IERC721Receiver {
     // IERC20 public token; // Address of token contract
     // address public transferOperator; // Address to manage the Transfers
 
-    constructor(uint8[] memory _checkpoints, string _freelancer, uint _clientAmount , uint _freelancerStake ) payable
+    constructor(uint8[] memory _checkpoints, address _freelancer, uint _clientAmount , uint _freelancerStake ) payable
     {
         require(_checkpoints[_checkpoints.length-1]==100);
         clientAddress = payable(msg.sender);
@@ -99,11 +99,6 @@ contract nftescrow is IERC721Receiver {
 		require(msg.sender == freelancerAddress);
 		_;
 	}
-
-	modifier noDispute(){
-	    require(buyerCancel == false && sellerCancel == false);
-	    _;
-	}
 	
 	modifier inProjectState(ProjectState _state) {
 		require(projectState == _state);
@@ -116,7 +111,7 @@ contract nftescrow is IERC721Receiver {
 
     function setProjectState(ProjectState _state) private {
         projectState = _state;
-        ProjectStateChanged(projectState);
+        emit ProjectStateChanged(projectState);
     }
 
     function getProjectState() public view returns (ProjectState) {
@@ -216,8 +211,10 @@ contract nftescrow is IERC721Receiver {
         IERC20(RTNAddress).transferFrom(address(this), freelancerAddress, freelancerStake);
     }
 
-    function releaseGigNFTToClient() {
-        ERC721(RNFTAddress).transferFrom(address(this), clientAddress, tokenID);
+    function releaseGigNFTToClient() 
+    private 
+    {
+        ERC721(RNFTAddress).transferFrom(address(this), clientAddress, RNFTTokenID);
     }
 
     function mintGigCompletionNFTForFreelancer() private {
@@ -245,73 +242,5 @@ contract nftescrow is IERC721Receiver {
 
     function onERC721Received( address operator, address from, uint256 tokenId, bytes calldata data ) public override returns (bytes4) {
         return this.onERC721Received.selector;
-    }
-    
-   
-    
-    function cancelAtNFT()
-        public
-        inProjectState(ProjectState.nftDeposited)
-        onlySeller
-    {
-        ERC721(nftAddress).safeTransferFrom(address(this), msg.sender, tokenID);
-        projectState = ProjectState.cancelNFT;
-    }
-  
-    function cancelBeforeDelivery(bool _state)
-        public
-        inProjectState(ProjectState.ethDeposited)
-        payable
-        BuyerOrSeller
-    {
-        if (msg.sender == sellerAddress){
-            sellerCancel = _state;
-        }
-        else{
-            buyerCancel = _state;
-        }
-        
-        if (sellerCancel == true && buyerCancel == true){
-            ERC721(nftAddress).safeTransferFrom(address(this), sellerAddress, tokenID);
-            buyerAddress.transfer(address(this).balance);
-            projectState = ProjectState.canceledBeforeDelivery;     
-        }
-    }
-    
-    
-    function initiateDelivery()
-        public
-        inProjectState(ProjectState.ethDeposited)
-        onlySeller
-        noDispute
-    {
-        projectState = ProjectState.deliveryInitiated;
-    }        
-    
-    function confirmDelivery()
-        public
-        payable
-        inProjectState(ProjectState.deliveryInitiated)
-        onlyBuyer
-    {
-        ERC721(nftAddress).safeTransferFrom(address(this), buyerAddress, tokenID);
-        sellerAddress.transfer(address(this).balance);
-        projectState = ProjectState.delivered;
-    }
-        
-
-
-
-
-    function getBalance()
-        public
-        view
-        returns (uint256 balance)
-    {
-        return address(this).balance;
-    }
-
-    receive() external payable {
-        emit Received(msg.sender, msg.value);
     }
 } 

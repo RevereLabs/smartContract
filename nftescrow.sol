@@ -130,7 +130,7 @@ contract nftescrow is IERC721Receiver {
     {
         RNFTAddress = _RNFTAddress;
         RNFTTokenID = _RNFTTokenID;
-        ERC721(RNFTAddress).safeTransferFrom(msg.sender, address(this), RNFTTokenID * 18);
+        ERC721(RNFTAddress).safeTransferFrom(msg.sender, address(this), RNFTTokenID);
         setProjectState(ProjectState.nftDeposited);
     } 
 
@@ -221,6 +221,14 @@ contract nftescrow is IERC721Receiver {
 
     function mintGigCompletionNFTForFreelancer() private {
         RGCNFTInterface(RGCNFTAddress).mint(freelancerAddress, RGCNFTArtURI);
+    }
+
+
+
+    function getCheckpointStatus() external view returns ( uint8 client,
+        uint8 freelancer,
+        uint8 smc){
+        return (currentCheckpoints.client, currentCheckpoints.freelancer, currentCheckpoints.smc);
     }
 
 

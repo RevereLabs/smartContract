@@ -1,5 +1,18 @@
 {
   "dependencies": {
-    "@remix-project/remixd": "^0.6.5"
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.4",
+    "@nomiclabs/hardhat-ethers": "^2.1.1",
+    "@openzeppelin/contracts": "^4.7.3",
+    "@openzeppelin/hardhat-upgrades": "^1.20.0",
+    "@remix-project/remixd": "^0.6.5",
+    "@types/chai": "^4.3.3",
+    "@types/mocha": "^9.1.1",
+    "chai": "^4.3.6",
+    "ethers": "^5.6.9",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.7.4"
+  },
+  "devDependencies": {
+    "hardhat": "^2.10.2"
   }
 }

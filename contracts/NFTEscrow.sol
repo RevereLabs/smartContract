@@ -43,8 +43,8 @@ contract NFTEscrow is IERC721Receiver {
     // TODO: why public?
     // TODO: token address can change ,rn hardcoded
 
-    address public RTNAddress = 0xd9145CCE52D386f254917e481eB44e9943F39138;
-    address public RGCNFTAddress = 0xf8e81D47203A594245E36C48e151709F0C19fBe8;
+    address public RTNAddress; // = 0xd9145CCE52D386f254917e481eB44e9943F39138;
+    address public RGCNFTAddress; // = 0xf8e81D47203A594245E36C48e151709F0C19fBe8;
 
     address public RNFTAddress;
     address payable public clientAddress;
@@ -67,7 +67,8 @@ contract NFTEscrow is IERC721Receiver {
     currentCheckpointsStruct currentCheckpoints;
 
     // percentage of funds to be disbursed at each step.
-    // NOTE: You NEED to use cumulative percentages.
+    // NOTE: You NEED to use cumulative percentages. And the first percentage is 0.
+    // Example: [0, 10, 25, 100]
     uint8[] checkpoints;
 
     string RGCNFTArtURI;
@@ -79,7 +80,9 @@ contract NFTEscrow is IERC721Receiver {
         uint8[] memory _checkpoints,
         address _freelancer,
         uint _clientAmount,
-        uint _freelancerStake
+        uint _freelancerStake,
+        address _RGCNFTAddress,
+        address _RTNAddress
     ) payable {
         require(_checkpoints[_checkpoints.length - 1] == 100);
         clientAddress = payable(msg.sender);
@@ -87,6 +90,8 @@ contract NFTEscrow is IERC721Receiver {
         checkpoints = _checkpoints;
         clientAmount = _clientAmount;
         freelancerStake = _freelancerStake;
+        RGCNFTAddress = _RGCNFTAddress;
+        RTNAddress = _RTNAddress;
         setProjectState(ProjectState.newEscrow);
 
         RGCNFTArtURI = "";
@@ -189,7 +194,7 @@ contract NFTEscrow is IERC721Receiver {
         emit ClientCheckpointChanged(currentCheckpoints.client);
     }
 
-    function disburseFunds() public onlyFreelancer {
+    function disburseFunds() external onlyFreelancer {
         uint8 approvedCheckpoint = currentCheckpoints.client;
         if (currentCheckpoints.freelancer < currentCheckpoints.client) {
             approvedCheckpoint = currentCheckpoints.freelancer;
@@ -198,10 +203,12 @@ contract NFTEscrow is IERC721Receiver {
             uint8 percentageToBeTransferred = checkpoints[approvedCheckpoint] -
                 checkpoints[currentCheckpoints.smc];
             // Transfer percentageToBeTransferred*totalAmount to freelancer
-            IERC20(RTNAddress).transferFrom(
-                address(this),
+            uint amountToBeTransferred =
+                (percentageToBeTransferred * clientAmount) / 100;
+            // return (amountToBeTransferred);
+            IERC20(RTNAddress).transfer(
                 freelancerAddress,
-                (percentageToBeTransferred * clientAmount) / 100
+                amountToBeTransferred
             );
             emit FundsDisbursed(currentCheckpoints.smc, approvedCheckpoint);
             currentCheckpoints.smc = approvedCheckpoint;

@@ -1,17 +1,16 @@
 import { expect } from "chai";
 import hre, { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { BigNumber } from "ethers";
 
 
 const clientAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-const clientPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
 const freelancerAddress = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-const freelancerPrivateKey = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 
 describe("Test", function () {
   it("Testing the overall standard flow", async function () {
+    const [client, freelancer] = await ethers.getSigners();
+
     const RevereToken = await ethers.getContractFactory("RevereToken");
     const revere_token_contract = await RevereToken.deploy();
   
@@ -34,7 +33,14 @@ describe("Test", function () {
     console.log(`RevereGigCompletionNFT deployed to ${revere_gig_completion_nft_contract.address}`);
 
     const NFTEscrow = await ethers.getContractFactory("NFTEscrow");
-    const nftEscrow = await NFTEscrow.deploy([10, 25, 100], freelancerAddress, "10000000000000000000", "1000000000000000000");
+    const nftEscrow = await NFTEscrow.deploy(
+      [0, 10, 25, 100], 
+      freelancerAddress, 
+      "10000000000000000000", 
+      "1000000000000000000",
+      revere_gig_completion_nft_contract.address,
+      revere_token_contract.address
+      );
 
     await nftEscrow.deployed();
 
@@ -63,7 +69,46 @@ describe("Test", function () {
     await revere_token_contract.functions.approve(nftEscrow.address.toString(), "10000000000000000000");
 
     // Transfer RTN to escrow
+    await nftEscrow.functions.depositFundsAsClient();
+
+    expect((await nftEscrow.functions.getProjectState())[0]).to.equal(2);
+
+    // Mint RTN to freelancer
+    await revere_token_contract.connect(freelancer).functions.mintToken("1000000000000000000");
+
+    // Approve RTN to escrow from freelancer
+    await revere_token_contract.connect(freelancer).functions.approve(nftEscrow.address.toString(), "1000000000000000000");
+
+    // Transfer RTN to escrow from freelancer
+    await nftEscrow.connect(freelancer).functions.depositFundsAsFreelancer();
+
+    expect((await nftEscrow.functions.getProjectState())[0]).to.equal(3);
+
+    // First checkpoint done by freelancer
+    await nftEscrow.connect(freelancer).functions.increaseFreelancerCheckpoint();
+
+    expect((await nftEscrow.functions.getCheckpointStatus()).freelancer).to.equal(1);
+    expect((await nftEscrow.functions.getCheckpointStatus()).client).to.equal(0);
+    expect((await nftEscrow.functions.getCheckpointStatus()).smc).to.equal(0);
     
+    // await nftEscrow.connect(freelancer).functions.disburseFunds();
+
+    expect((await nftEscrow.functions.getCheckpointStatus()).freelancer).to.equal(1);
+    expect((await nftEscrow.functions.getCheckpointStatus()).client).to.equal(0);
+    expect((await nftEscrow.functions.getCheckpointStatus()).smc).to.equal(0);
+
+    // First checkpoint done by client
+    await nftEscrow.functions.increaseClientCheckpoint();
+
+    expect((await nftEscrow.functions.getCheckpointStatus()).freelancer).to.equal(1);
+    expect((await nftEscrow.functions.getCheckpointStatus()).client).to.equal(1);
+    expect((await nftEscrow.functions.getCheckpointStatus()).smc).to.equal(0);
+    
+    await nftEscrow.connect(freelancer).disburseFunds();
+
+    expect((await nftEscrow.functions.getCheckpointStatus()).freelancer).to.equal(1);
+    expect((await nftEscrow.functions.getCheckpointStatus()).client).to.equal(1);
+    expect((await nftEscrow.functions.getCheckpointStatus()).smc).to.equal(1);    
   });
 });
 

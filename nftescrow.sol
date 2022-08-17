@@ -37,9 +37,9 @@ contract nftescrow is IERC721Receiver {
 // TODO: why public?
 // TODO: token address can change ,rn hardcoded
 
-    address public RTNAddress = 0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8;
+    address public RTNAddress = 0xe2bBC8ED1a41E625669C9BE07f7af4F1B7d40aC3;
     address public RNFTAddress;
-    address public RGCNFTAddress;
+    address public RGCNFTAddress = 0x700EC5d532b424E75f4142CAA4092E8551aEdf84;
 
 
     address payable public clientAddress;
@@ -130,7 +130,7 @@ contract nftescrow is IERC721Receiver {
     {
         RNFTAddress = _RNFTAddress;
         RNFTTokenID = _RNFTTokenID;
-        ERC721(RNFTAddress).safeTransferFrom(msg.sender, address(this), RNFTTokenID);
+        ERC721(RNFTAddress).safeTransferFrom(msg.sender, address(this), RNFTTokenID * 18);
         setProjectState(ProjectState.nftDeposited);
     } 
 
@@ -235,6 +235,9 @@ contract nftescrow is IERC721Receiver {
         return checkpoints;
     }
 
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
 
 
 

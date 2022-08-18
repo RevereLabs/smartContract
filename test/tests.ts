@@ -90,6 +90,8 @@ describe("Test", function () {
     // Transfer RTN to escrow from freelancer
     await nftEscrow.connect(freelancer).functions.depositFundsAsFreelancer();
 
+    expect((await revere_token_contract.functions.balanceOf(freelancer.address)).toString()).to.equal('1000000000000000000');
+
     expect((await nftEscrow.functions.getProjectState())[0]).to.equal(3);
 
     // First checkpoint done by freelancer

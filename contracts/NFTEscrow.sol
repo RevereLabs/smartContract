@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface RGCNFTInterface {
+interface RevereGigCompletionNFTInterface {
     function mint(address _to, string memory tokenURI_) external;
 }
 
@@ -233,8 +233,7 @@ contract NFTEscrow is IERC721Receiver {
         private
         inProjectState(ProjectState.checkpointsDone)
     {
-        IERC20(RTNAddress).transferFrom(
-            address(this),
+        IERC20(RTNAddress).transfer(
             freelancerAddress,
             freelancerStake
         );
@@ -249,7 +248,7 @@ contract NFTEscrow is IERC721Receiver {
     }
 
     function mintGigCompletionNFTForFreelancer() private {
-        RGCNFTInterface(RGCNFTAddress).mint(freelancerAddress, RGCNFTArtURI);
+        RevereGigCompletionNFTInterface(RGCNFTAddress).mint(freelancerAddress, RGCNFTArtURI);
     }
 
     function getCheckpointStatus()

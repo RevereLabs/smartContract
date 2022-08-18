@@ -2,3 +2,4 @@ node_modules/
 .deps/
 artifacts/
 cache/
+typechain-types/

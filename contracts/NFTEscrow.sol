@@ -73,6 +73,8 @@ contract NFTEscrow is IERC721Receiver {
 
     string RGCNFTArtURI;
 
+    uint freelancerCompensationIfClientCancels;
+
     // IERC20 public token; // Address of token contract
     // address public transferOperator; // Address to manage the Transfers
 
@@ -82,9 +84,11 @@ contract NFTEscrow is IERC721Receiver {
         uint _clientAmount,
         uint _freelancerStake,
         address _RGCNFTAddress,
-        address _RTNAddress
+        address _RTNAddress,
+        uint _freelancerCompensationIfClientCancels
     ) payable {
         require(_checkpoints[_checkpoints.length - 1] == 100);
+        require(_checkpoints[0] == 0);
         clientAddress = payable(msg.sender);
         freelancerAddress = payable(_freelancer);
         checkpoints = _checkpoints;
@@ -92,6 +96,7 @@ contract NFTEscrow is IERC721Receiver {
         freelancerStake = _freelancerStake;
         RGCNFTAddress = _RGCNFTAddress;
         RTNAddress = _RTNAddress;
+        freelancerCompensationIfClientCancels = _freelancerCompensationIfClientCancels;
         setProjectState(ProjectState.newEscrow);
 
         RGCNFTArtURI = "";
@@ -195,6 +200,10 @@ contract NFTEscrow is IERC721Receiver {
     }
 
     function disburseFunds() external onlyFreelancer {
+        _disburseFunds();
+    }
+
+    function _disburseFunds() private {
         uint8 approvedCheckpoint = currentCheckpoints.client;
         if (currentCheckpoints.freelancer < currentCheckpoints.client) {
             approvedCheckpoint = currentCheckpoints.freelancer;
@@ -203,8 +212,8 @@ contract NFTEscrow is IERC721Receiver {
             uint8 percentageToBeTransferred = checkpoints[approvedCheckpoint] -
                 checkpoints[currentCheckpoints.smc];
             // Transfer percentageToBeTransferred*totalAmount to freelancer
-            uint amountToBeTransferred =
-                (percentageToBeTransferred * clientAmount) / 100;
+            uint amountToBeTransferred = (percentageToBeTransferred *
+                clientAmount) / 100;
             // return (amountToBeTransferred);
             IERC20(RTNAddress).transfer(
                 freelancerAddress,
@@ -223,20 +232,21 @@ contract NFTEscrow is IERC721Receiver {
         inProjectState(ProjectState.checkpointingStarted)
     {
         setProjectState(ProjectState.checkpointsDone);
-        releaseStakedFunds();
+        releaseStakedFundsToFreelancer();
         releaseGigNFTToClient();
         mintGigCompletionNFTForFreelancer();
         setProjectState(ProjectState.done);
     }
 
-    function releaseStakedFunds()
+    function releaseStakedFundsToFreelancer() private {
+        IERC20(RTNAddress).transfer(freelancerAddress, freelancerStake);
+    }
+
+    function releaseStakedFundsToClient()
         private
-        inProjectState(ProjectState.checkpointsDone)
+        inProjectState(ProjectState.cancelledByFreelancer)
     {
-        IERC20(RTNAddress).transfer(
-            freelancerAddress,
-            freelancerStake
-        );
+        IERC20(RTNAddress).transfer(clientAddress, freelancerStake);
     }
 
     function releaseGigNFTToClient() private {
@@ -248,7 +258,10 @@ contract NFTEscrow is IERC721Receiver {
     }
 
     function mintGigCompletionNFTForFreelancer() private {
-        RevereGigCompletionNFTInterface(RGCNFTAddress).mint(freelancerAddress, RGCNFTArtURI);
+        RevereGigCompletionNFTInterface(RGCNFTAddress).mint(
+            freelancerAddress,
+            RGCNFTArtURI
+        );
     }
 
     function getCheckpointStatus()
@@ -271,8 +284,39 @@ contract NFTEscrow is IERC721Receiver {
         return checkpoints;
     }
 
-    receive() external payable {
-        emit Received(msg.sender, msg.value);
+    function clientCancel() external onlyClient {
+        _disburseFunds();
+        setProjectState(ProjectState.cancelledByClient);
+        releaseStakedFundsToFreelancer();
+        // No NFTs will be released as the client cancelled the project.
+        releaseCancellationCompensation();
+        // transfer left over funds to client
+        IERC20(RTNAddress).transfer(
+            clientAddress,
+            IERC20(RTNAddress).balanceOf(address(this))
+        );
+    }
+
+    function freelancerCancel() external onlyFreelancer {
+        _disburseFunds();
+        setProjectState(ProjectState.cancelledByFreelancer);
+        releaseStakedFundsToClient();
+        // transfer left over funds to freelancer
+        IERC20(RTNAddress).transfer(
+            freelancerAddress,
+            IERC20(RTNAddress).balanceOf(address(this))
+        );
+    }
+
+    function releaseCancellationCompensation()
+        private
+        inProjectState(ProjectState.cancelledByClient)
+    {
+        IERC20(RTNAddress).transfer(
+            freelancerAddress,
+            (freelancerCompensationIfClientCancels *
+                IERC20(RTNAddress).balanceOf(address(this))/100)
+        );
     }
 
     // copied code from here

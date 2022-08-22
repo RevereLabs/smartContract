@@ -61,7 +61,7 @@ describe("Test", function () {
 
 
     // Mint RNFT to client
-    await revere_nft_contract.functions.mint(clientAddress, 1);
+    await revere_nft_contract.functions.mint(clientAddress, "ipfs_uri");
 
     // Approve RNFT to escrow
     await revere_nft_contract.functions.approve(nftEscrow.address.toString(), 0);
@@ -238,7 +238,7 @@ describe("Test", function () {
 
 
     // Mint RNFT to client
-    await revere_nft_contract.functions.mint(clientAddress, 1);
+    await revere_nft_contract.functions.mint(clientAddress, "ipfs_uri");
 
     // Approve RNFT to escrow
     await revere_nft_contract.functions.approve(nftEscrow.address.toString(), 0);
@@ -369,7 +369,7 @@ describe("Test", function () {
 
 
     // Mint RNFT to client
-    await revere_nft_contract.functions.mint(clientAddress, 1);
+    await revere_nft_contract.functions.mint(clientAddress, "ipfs_uri");
 
     // Approve RNFT to escrow
     await revere_nft_contract.functions.approve(nftEscrow.address.toString(), 0);

@@ -1,9 +1,3 @@
-/**
- * @file nftescrow.sol
- * @author Jackson Ng <jackson@jacksonng.org>
- * @date created 16th Sep 2021
- * @date last modified 18th Sep 2021
- */
 
 //SPDX-License-Identifier: MIT
 
